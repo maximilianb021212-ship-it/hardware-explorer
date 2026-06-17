@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hardware Explorer</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --card: #16161f;
+    --border: #2a2a3a;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --accent4: #fa8231;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --green: #00e676;
+    --red: #ff5252;
+    --yellow: #ffd740;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #0d0d1a 0%, #1a1030 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 1.5rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+  }
+  header h1 {
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-weight: 700;
+    background: linear-gradient(135deg, #6c63ff, #ff6584);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p { color: var(--muted); font-size: .85rem; margin-top: .3rem; }
+  .tabs {
+    display: flex; gap: .5rem; overflow-x: auto; padding: .75rem 1.5rem;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: .4rem .9rem; border-radius: 999px; cursor: pointer;
+    white-space: nowrap; font-size: .8rem; transition: all .2s;
+  }
+  .tab.active, .tab:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 1.25rem; position: relative; overflow: hidden; transition: border-color .2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    opacity: 0; transition: opacity .2s;
+  }
+  .card:hover::before { opacity: 1; }
+  .card-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .card-icon {
+    width: 40px; height: 40px; border-radius: 10px; display: flex;
+    align-items: center; justify-content: center; font-size: 1.2rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .card-title { font-weight: 600; font-size: .95rem; }
+  .card-subtitle { font-size: .75rem; color: var(--muted); }
+  .badge {
+    margin-left: auto; padding: .2rem .5rem; border-radius: 4px;
+    font-size: .7rem; font-weight: 600; text-transform: uppercase;
+  }
+  .badge-supported { background: #00e67620; color: var(--green); border: 1px solid #00e67640; }
+  .badge-unsupported { background: #ff525220; color: var(--red); border: 1px solid #ff525240; }
+  .badge-unknown { background: #ffd74020; color: var(--yellow); border: 1px solid #ffd74040; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: .75rem 0; }
+  .data-item { background: var(--surface); border-radius: 8px; padding: .5rem .75rem; }
+  .data-label { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .data-value { font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: .1rem; }
+  .btn {
+    background: var(--accent); color: #fff; border: none; padding: .5rem 1rem;
+    border-radius: 8px; cursor: pointer; font-size: .8rem; font-weight: 600;
+    transition: all .15s; display: inline-flex; align-items: center; gap: .4rem;
+  }
+  .btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn-sm { padding: .35rem .7rem; font-size: .75rem; }
+  .btn-danger { background: var(--red); }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+  .meter {
+    height: 6px; background: var(--surface); border-radius: 3px; margin: .5rem 0; overflow: hidden;
+  }
+  .meter-fill { height: 100%; border-radius: 3px; transition: width .3s, background .3s; }
+  canvas { border-radius: 8px; width: 100%; display: block; }
+  video { width: 100%; border-radius: 8px; background: #000; }
+  select, input[type=text], input[type=range], textarea {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: .4rem .6rem; font-size: .8rem; width: 100%;
+    margin-top: .5rem;
+  }
+  input[type=range] { padding: 0; cursor: pointer; accent-color: var(--accent); }
+  textarea { resize: vertical; min-height: 60px; }
+  .log {
+    background: var(--surface); border-radius: 8px; padding: .75rem;
+    font-family: monospace; font-size: .75rem; max-height: 100px; overflow-y: auto;
+    margin-top: .5rem; color: var(--accent3);
+  }
+  .log:empty::before { content: 'Keine Ausgabe'; color: var(--muted); }
+  .indicator { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .gamepad-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: .3rem; }
+  .gp-btn {
+    aspect-ratio: 1; background: var(--surface); border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; font-size: .65rem;
+    color: var(--muted); transition: all .1s;
+  }
+  .gp-btn.pressed { background: var(--accent); color: #fff; transform: scale(.9); }
+  .axis-bar { display: flex; align-items: center; gap: .5rem; margin: .25rem 0; }
+  .axis-track { flex: 1; height: 4px; background: var(--surface); border-radius: 2px; position: relative; }
+  .axis-thumb {
+    width: 10px; height: 10px; background: var(--accent); border-radius: 50%;
+    position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
+    transition: left .05s;
+  }
+  .compass { width: 80px; height: 80px; position: relative; margin: .5rem auto; }
+  .compass-ring {
+    width: 100%; height: 100%; border-radius: 50%;
+    border: 2px solid var(--border); position: relative;
+  }
+  .compass-needle {
+    position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+    width: 2px; height: 35px; background: linear-gradient(var(--red) 50%, var(--accent) 50%);
+    transform-origin: bottom center; border-radius: 2px;
+    transition: transform .2s;
+  }
+  .speech-output {
+    background: var(--surface); border-radius: 8px; padding: .75rem;
+    font-size: .85rem; min-height: 40px; margin-top: .5rem; color: var(--accent3);
+  }
+  .network-bar { height: 3px; background: var(--accent); border-radius: 2px; }
+  .toggle { display: flex; align-items: center; gap: .5rem; cursor: pointer; font-size: .8rem; }
+  .toggle input { accent-color: var(--accent); cursor: pointer; }
+  #toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1rem;
+    font-size: .8rem; z-index: 9999; transform: translateY(100px); opacity: 0;
+    transition: all .3s; max-width: 300px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  .fullwidth { grid-column: 1 / -1; }
+  @media (max-width: 480px) {
+    .section.active { grid-template-columns: 1fr; }
+    .data-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Hardware Explorer</h1>
+  <p>Browser-Hardware-Schnittstellen — Phones, Laptops &amp; PCs</p>
+</header>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="switchTab('motion')">🏃 Bewegung</button>
+  <button class="tab" onclick="switchTab('camera')">📷 Kamera &amp; Audio</button>
+  <button class="tab" onclick="switchTab('location')">📍 Standort &amp; Umgebung</button>
+  <button class="tab" onclick="switchTab('connectivity')">📡 Konnektivität</button>
+  <button class="tab" onclick="switchTab('system')">💻 System</button>
+  <button class="tab" onclick="switchTab('input')">🎮 Eingabe</button>
+  <button class="tab" onclick="switchTab('communication')">📢 Kommunikation</button>
+  <button class="tab" onclick="switchTab('advanced')">🔬 Erweitert</button>
+</div>
+
+<div class="main">
+
+<!-- BEWEGUNG -->
+<div class="section active" id="section-motion">
+
+  <!-- Beschleunigungssensor -->
+  <div class="card" id="card-accel">
+    <div class="card-header">
+      <div class="card-icon">📐</div>
+      <div><div class="card-title">Beschleunigungssensor</div><div class="card-subtitle">DeviceMotion API</div></div>
+      <span class="badge" id="badge-accel">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">X (m/s²)</div><div class="data-value" id="accel-x">—</div></div>
+      <div class="data-item"><div class="data-label">Y (m/s²)</div><div class="data-value" id="accel-y">—</div></div>
+      <div class="data-item"><div class="data-label">Z (m/s²)</div><div class="data-value" id="accel-z">—</div></div>
+      <div class="data-item"><div class="data-label">Gesamt</div><div class="data-value" id="accel-total">—</div></div>
+    </div>
+    <canvas id="accel-canvas" height="60"></canvas>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startAccel()">▶ Starten</button>
+      <button class="btn btn-sm btn-outline" onclick="stopAccel()">■ Stoppen</button>
+    </div>
+  </div>
+
+  <!-- Gyroskop -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🌀</div>
+      <div><div class="card-title">Gyroskop</div><div class="card-subtitle">DeviceMotion – Rotation</div></div>
+      <span class="badge" id="badge-gyro">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Alpha (°/s)</div><div class="data-value" id="gyro-alpha">—</div></div>
+      <div class="data-item"><div class="data-label">Beta (°/s)</div><div class="data-value" id="gyro-beta">—</div></div>
+      <div class="data-item"><div class="data-label">Gamma (°/s)</div><div class="data-value" id="gyro-gamma">—</div></div>
+      <div class="data-item"><div class="data-label">Interval (ms)</div><div class="data-value" id="gyro-interval">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startAccel()">▶ Starten</button>
+    </div>
+  </div>
+
+  <!-- Orientierung -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🧭</div>
+      <div><div class="card-title">Geräteorientierung</div><div class="card-subtitle">DeviceOrientation API</div></div>
+      <span class="badge" id="badge-orient">...</span>
+    </div>
+    <div class="compass">
+      <div class="compass-ring">
+        <div class="compass-needle" id="compass-needle"></div>
+      </div>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Alpha (Z)</div><div class="data-value" id="ori-alpha">—</div></div>
+      <div class="data-item"><div class="data-label">Beta (X)</div><div class="data-value" id="ori-beta">—</div></div>
+      <div class="data-item"><div class="data-label">Gamma (Y)</div><div class="data-value" id="ori-gamma">—</div></div>
+      <div class="data-item"><div class="data-label">Absolut</div><div class="data-value" id="ori-abs">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startOrientation()">▶ Starten</button>
+      <button class="btn btn-sm btn-outline" onclick="stopOrientation()">■ Stoppen</button>
+    </div>
+  </div>
+
+  <!-- Bildschirmorientierung -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📱</div>
+      <div><div class="card-title">Bildschirmausrichtung</div><div class="card-subtitle">Screen Orientation API</div></div>
+      <span class="badge" id="badge-screen-orient">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Typ</div><div class="data-value" id="screen-orient-type">—</div></div>
+      <div class="data-item"><div class="data-label">Winkel</div><div class="data-value" id="screen-orient-angle">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="lockLandscape()">🔒 Querformat</button>
+      <button class="btn btn-sm btn-outline" onclick="unlockOrientation()">🔓 Freigabe</button>
+    </div>
+  </div>
+
+</div><!-- /motion -->
+
+<!-- KAMERA & AUDIO -->
+<div class="section" id="section-camera">
+
+  <!-- Kamera -->
+  <div class="card fullwidth">
+    <div class="card-header">
+      <div class="card-icon">📷</div>
+      <div><div class="card-title">Kamera</div><div class="card-subtitle">getUserMedia – Video</div></div>
+      <span class="badge" id="badge-camera">...</span>
+    </div>
+    <video id="camera-video" autoplay muted playsinline></video>
+    <div class="btn-row" style="margin-top:.75rem">
+      <button class="btn btn-sm" onclick="startCamera('user')">🤳 Front</button>
+      <button class="btn btn-sm" onclick="startCamera('environment')">📸 Rück</button>
+      <button class="btn btn-sm btn-outline" onclick="stopCamera()">■ Stop</button>
+      <button class="btn btn-sm btn-success" onclick="capturePhoto()">📷 Foto</button>
+    </div>
+    <canvas id="photo-canvas" style="margin-top:.5rem;display:none"></canvas>
+    <div id="camera-devices" style="margin-top:.5rem;font-size:.75rem;color:var(--muted)"></div>
+  </div>
+
+  <!-- Mikrofon -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎤</div>
+      <div><div class="card-title">Mikrofon</div><div class="card-subtitle">AudioContext + Analyse</div></div>
+      <span class="badge" id="badge-mic">...</span>
+    </div>
+    <div class="data-item" style="margin-bottom:.5rem">
+      <div class="data-label">Lautstärke</div>
+      <div class="data-value" id="mic-level">— dB</div>
+    </div>
+    <div class="meter"><div class="meter-fill" id="mic-meter" style="width:0;background:var(--accent3)"></div></div>
+    <canvas id="mic-canvas" height="80"></canvas>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startMic()">▶ Mikrofon</button>
+      <button class="btn btn-sm btn-outline" onclick="stopMic()">■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Bildschirmaufnahme -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🖥️</div>
+      <div><div class="card-title">Bildschirmaufnahme</div><div class="card-subtitle">getDisplayMedia API</div></div>
+      <span class="badge" id="badge-screencap">...</span>
+    </div>
+    <video id="screen-video" autoplay muted playsinline style="max-height:150px"></video>
+    <div class="btn-row" style="margin-top:.75rem">
+      <button class="btn btn-sm" onclick="startScreenCapture()">▶ Aufnahme</button>
+      <button class="btn btn-sm btn-outline" onclick="stopScreenCapture()">■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Mediengeräte -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎛️</div>
+      <div><div class="card-title">Mediengeräte</div><div class="card-subtitle">enumerateDevices API</div></div>
+    </div>
+    <div id="media-devices-list" class="log" style="max-height:150px">Klicke Laden</div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="listMediaDevices()">🔍 Laden</button>
+    </div>
+  </div>
+
+</div><!-- /camera -->
+
+<!-- STANDORT -->
+<div class="section" id="section-location">
+
+  <!-- GPS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📍</div>
+      <div><div class="card-title">GPS / Standort</div><div class="card-subtitle">Geolocation API</div></div>
+      <span class="badge" id="badge-geo">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Breitengrad</div><div class="data-value" id="geo-lat">—</div></div>
+      <div class="data-item"><div class="data-label">Längengrad</div><div class="data-value" id="geo-lon">—</div></div>
+      <div class="data-item"><div class="data-label">Höhe (m)</div><div class="data-value" id="geo-alt">—</div></div>
+      <div class="data-item"><div class="data-label">Genauigkeit (m)</div><div class="data-value" id="geo-acc">—</div></div>
+      <div class="data-item"><div class="data-label">Geschw. (m/s)</div><div class="data-value" id="geo-speed">—</div></div>
+      <div class="data-item"><div class="data-label">Richtung (°)</div><div class="data-value" id="geo-heading">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="getLocation()">📍 Position</button>
+      <button class="btn btn-sm" onclick="watchLocation()">👁 Live</button>
+      <button class="btn btn-sm btn-outline" onclick="stopLocation()">■ Stop</button>
+      <button class="btn btn-sm btn-outline" onclick="openMap()">🗺 Karte</button>
+    </div>
+  </div>
+
+  <!-- Umgebungslicht -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">💡</div>
+      <div><div class="card-title">Umgebungslicht</div><div class="card-subtitle">AmbientLightSensor API</div></div>
+      <span class="badge" id="badge-light">...</span>
+    </div>
+    <div class="data-item">
+      <div class="data-label">Helligkeit (lux)</div>
+      <div class="data-value" id="light-value" style="font-size:1.5rem">—</div>
+    </div>
+    <div class="meter"><div class="meter-fill" id="light-meter" style="width:0;background:var(--yellow)"></div></div>
+    <div id="light-desc" style="font-size:.75rem;color:var(--muted);margin-top:.5rem">—</div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startLightSensor()">▶ Starten</button>
+      <button class="btn btn-sm btn-outline" onclick="stopLightSensor()">■ Stop</button>
+    </div>
+  </div>
+
+  <!-- Barometer / Relative Humidity -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🌡️</div>
+      <div><div class="card-title">Weitere Sensoren</div><div class="card-subtitle">Generic Sensor API</div></div>
+    </div>
+    <div id="extra-sensors" class="log" style="max-height:120px">Klicke Prüfen</div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkExtraSensors()">🔍 Prüfen</button>
+    </div>
+  </div>
+
+</div><!-- /location -->
+
+<!-- KONNEKTIVITÄT -->
+<div class="section" id="section-connectivity">
+
+  <!-- Netzwerk -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📶</div>
+      <div><div class="card-title">Netzwerk</div><div class="card-subtitle">Network Information API</div></div>
+      <span class="badge" id="badge-network">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Typ</div><div class="data-value" id="net-type">—</div></div>
+      <div class="data-item"><div class="data-label">Effektiv</div><div class="data-value" id="net-effective">—</div></div>
+      <div class="data-item"><div class="data-label">Downlink (Mb/s)</div><div class="data-value" id="net-downlink">—</div></div>
+      <div class="data-item"><div class="data-label">RTT (ms)</div><div class="data-value" id="net-rtt">—</div></div>
+      <div class="data-item"><div class="data-label">Datenspar</div><div class="data-value" id="net-save">—</div></div>
+      <div class="data-item"><div class="data-label">Online</div><div class="data-value" id="net-online">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="updateNetworkInfo()">🔄 Aktualisieren</button>
+      <button class="btn btn-sm" onclick="speedTest()">⚡ Speed-Test</button>
+    </div>
+    <div id="speed-result" style="font-size:.8rem;color:var(--accent3);margin-top:.5rem"></div>
+  </div>
+
+  <!-- Bluetooth -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔵</div>
+      <div><div class="card-title">Bluetooth</div><div class="card-subtitle">Web Bluetooth API</div></div>
+      <span class="badge" id="badge-bt">...</span>
+    </div>
+    <div class="log" id="bt-log" style="max-height:120px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="scanBluetooth()">🔍 Scan</button>
+      <button class="btn btn-sm btn-outline" onclick="checkBluetooth()">ℹ️ Info</button>
+    </div>
+  </div>
+
+  <!-- USB -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔌</div>
+      <div><div class="card-title">USB</div><div class="card-subtitle">WebUSB API</div></div>
+      <span class="badge" id="badge-usb">...</span>
+    </div>
+    <div class="log" id="usb-log" style="max-height:120px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="scanUSB()">🔍 Gerät wählen</button>
+      <button class="btn btn-sm btn-outline" onclick="listUSBDevices()">📋 Liste</button>
+    </div>
+  </div>
+
+  <!-- MIDI -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎹</div>
+      <div><div class="card-title">MIDI</div><div class="card-subtitle">Web MIDI API</div></div>
+      <span class="badge" id="badge-midi">...</span>
+    </div>
+    <div class="log" id="midi-log" style="max-height:100px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startMIDI()">▶ MIDI aktivieren</button>
+    </div>
+  </div>
+
+</div><!-- /connectivity -->
+
+<!-- SYSTEM -->
+<div class="section" id="section-system">
+
+  <!-- Akku -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔋</div>
+      <div><div class="card-title">Akku</div><div class="card-subtitle">Battery Status API</div></div>
+      <span class="badge" id="badge-battery">...</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Ladung</div><div class="data-value" id="bat-level">—</div></div>
+      <div class="data-item"><div class="data-label">Laden</div><div class="data-value" id="bat-charging">—</div></div>
+      <div class="data-item"><div class="data-label">Zeit bis voll</div><div class="data-value" id="bat-time-full">—</div></div>
+      <div class="data-item"><div class="data-label">Verbleibend</div><div class="data-value" id="bat-time-empty">—</div></div>
+    </div>
+    <div class="meter">
+      <div class="meter-fill" id="bat-meter" style="width:0;background:var(--green)"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkBattery()">🔋 Akku prüfen</button>
+    </div>
+  </div>
+
+  <!-- Wake Lock -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">☀️</div>
+      <div><div class="card-title">Wake Lock</div><div class="card-subtitle">Screen Wake Lock API</div></div>
+      <span class="badge" id="badge-wakelock">...</span>
+    </div>
+    <div class="indicator" id="wakelock-status">
+      <div class="dot" id="wakelock-dot"></div>
+      <span id="wakelock-text">Inaktiv</span>
+    </div>
+    <p style="font-size:.75rem;color:var(--muted);margin:.5rem 0">Verhindert, dass der Bildschirm sich ausschaltet.</p>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="acquireWakeLock()">🔒 Aktivieren</button>
+      <button class="btn btn-sm btn-outline" onclick="releaseWakeLock()">🔓 Freigeben</button>
+    </div>
+  </div>
+
+  <!-- Performance & Speicher -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">💾</div>
+      <div><div class="card-title">Speicher &amp; Performance</div><div class="card-subtitle">Performance API + Storage</div></div>
+    </div>
+    <div class="data-grid" id="perf-grid">
+      <div class="data-item"><div class="data-label">CPU Kerne</div><div class="data-value" id="perf-cores">—</div></div>
+      <div class="data-item"><div class="data-label">RAM (GB)</div><div class="data-value" id="perf-ram">—</div></div>
+      <div class="data-item"><div class="data-label">Speicher belegt</div><div class="data-value" id="perf-storage-used">—</div></div>
+      <div class="data-item"><div class="data-label">Speicher gesamt</div><div class="data-value" id="perf-storage-quota">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkPerformance()">📊 Prüfen</button>
+    </div>
+  </div>
+
+  <!-- GPU / WebGL -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🎮</div>
+      <div><div class="card-title">GPU / WebGL</div><div class="card-subtitle">WebGL Renderer Info</div></div>
+      <span class="badge badge-supported">Unterstützt</span>
+    </div>
+    <div class="data-grid">
+      <div class="data-item" style="grid-column:1/-1"><div class="data-label">Renderer</div><div class="data-value" id="gpu-renderer" style="font-size:.75rem;word-break:break-word">—</div></div>
+      <div class="data-item" style="grid-column:1/-1"><div class="data-label">Vendor</div><div class="data-value" id="gpu-vendor" style="font-size:.75rem;word-break:break-word">—</div></div>
+      <div class="data-item"><div class="data-label">Max Textur</div><div class="data-value" id="gpu-tex">—</div></div>
+      <div class="data-item"><div class="data-label">WebGL Version</div><div class="data-value" id="gpu-version">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkGPU()">🔍 GPU Info</button>
+    </div>
+  </div>
+
+  <!-- Vibration -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📳</div>
+      <div><div class="card-title">Vibration</div><div class="card-subtitle">Vibration API</div></div>
+      <span class="badge" id="badge-vibration">...</span>
+    </div>
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:.5rem">Funktioniert nur auf Mobilgeräten.</p>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="navigator.vibrate(200)">Kurz (200ms)</button>
+      <button class="btn btn-sm" onclick="navigator.vibrate(1000)">Lang (1s)</button>
+      <button class="btn btn-sm" onclick="navigator.vibrate([200,100,200,100,400])">Muster</button>
+      <button class="btn btn-sm btn-outline" onclick="navigator.vibrate(0)">Stop</button>
+    </div>
+  </div>
+
+</div><!-- /system -->
+
+<!-- EINGABE -->
+<div class="section" id="section-input">
+
+  <!-- Gamepad -->
+  <div class="card fullwidth">
+    <div class="card-header">
+      <div class="card-icon">🕹️</div>
+      <div><div class="card-title">Gamepad</div><div class="card-subtitle">Gamepad API</div></div>
+      <span class="badge" id="badge-gamepad">...</span>
+    </div>
+    <div id="gamepad-status" style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem">Kein Controller erkannt — verbinde einen und drücke eine Taste.</div>
+    <div id="gamepad-container"></div>
+  </div>
+
+  <!-- Touch -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">👆</div>
+      <div><div class="card-title">Touch</div><div class="card-subtitle">Touch Events + Pointer</div></div>
+      <span class="badge" id="badge-touch">...</span>
+    </div>
+    <canvas id="touch-canvas" height="150" style="cursor:crosshair;touch-action:none"></canvas>
+    <div class="data-grid" style="margin-top:.5rem">
+      <div class="data-item"><div class="data-label">Berührungen</div><div class="data-value" id="touch-count">0</div></div>
+      <div class="data-item"><div class="data-label">Max Punkte</div><div class="data-value" id="touch-max">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-outline" onclick="clearTouchCanvas()">🗑 Leeren</button>
+    </div>
+  </div>
+
+  <!-- Pointer Lock -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🖱️</div>
+      <div><div class="card-title">Pointer Lock</div><div class="card-subtitle">Pointer Lock API</div></div>
+      <span class="badge" id="badge-pointer-lock">...</span>
+    </div>
+    <div id="pointer-zone" style="background:var(--surface);border-radius:8px;padding:1rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--muted);margin-bottom:.5rem" onclick="requestPointerLock()">
+      Klicke hier für Pointer Lock
+    </div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-label">Delta X</div><div class="data-value" id="pointer-dx">—</div></div>
+      <div class="data-item"><div class="data-label">Delta Y</div><div class="data-value" id="pointer-dy">—</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm btn-outline" onclick="exitPointerLock()">🔓 Freigeben</button>
+    </div>
+  </div>
+
+  <!-- Spracheingabe -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🗣️</div>
+      <div><div class="card-title">Spracheingabe</div><div class="card-subtitle">Web Speech Recognition</div></div>
+      <span class="badge" id="badge-speech-rec">...</span>
+    </div>
+    <div class="indicator" style="margin-bottom:.5rem">
+      <div class="dot" id="speech-dot"></div>
+      <span id="speech-status">Inaktiv</span>
+    </div>
+    <select id="speech-lang">
+      <option value="de-DE">Deutsch</option>
+      <option value="en-US">English (US)</option>
+      <option value="en-GB">English (UK)</option>
+      <option value="fr-FR">Français</option>
+      <option value="es-ES">Español</option>
+    </select>
+    <div class="speech-output" id="speech-output">Hier erscheint dein Text...</div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startSpeechRecognition()">🎤 Sprechen</button>
+      <button class="btn btn-sm btn-outline" onclick="stopSpeechRecognition()">■ Stop</button>
+    </div>
+  </div>
+
+</div><!-- /input -->
+
+<!-- KOMMUNIKATION -->
+<div class="section" id="section-communication">
+
+  <!-- Benachrichtigungen -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔔</div>
+      <div><div class="card-title">Benachrichtigungen</div><div class="card-subtitle">Notifications API</div></div>
+      <span class="badge" id="badge-notif">...</span>
+    </div>
+    <div class="data-item" style="margin-bottom:.5rem">
+      <div class="data-label">Status</div>
+      <div class="data-value" id="notif-permission">—</div>
+    </div>
+    <input type="text" id="notif-title" placeholder="Titel" value="Hardware Explorer">
+    <input type="text" id="notif-body" placeholder="Nachricht" value="Hallo von Hardware Explorer! 👋">
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="requestNotifications()">🔔 Berechtigung</button>
+      <button class="btn btn-sm" onclick="sendNotification()">📤 Senden</button>
+    </div>
+  </div>
+
+  <!-- Teilen -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📤</div>
+      <div><div class="card-title">Web Share</div><div class="card-subtitle">Web Share API</div></div>
+      <span class="badge" id="badge-share">...</span>
+    </div>
+    <input type="text" id="share-title" placeholder="Titel" value="Hardware Explorer">
+    <input type="text" id="share-url" placeholder="URL" value="https://hardware-explorer.pages.dev">
+    <textarea id="share-text" placeholder="Text">Schau dir diese Hardware Explorer Website an!</textarea>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="doShare()">📤 Teilen</button>
+    </div>
+  </div>
+
+  <!-- Zwischenablage -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📋</div>
+      <div><div class="card-title">Zwischenablage</div><div class="card-subtitle">Clipboard API</div></div>
+      <span class="badge" id="badge-clipboard">...</span>
+    </div>
+    <textarea id="clipboard-text" placeholder="Text zum Kopieren...">Hardware Explorer — Teste deine Hardware im Browser!</textarea>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="copyToClipboard()">📋 Kopieren</button>
+      <button class="btn btn-sm btn-outline" onclick="pasteFromClipboard()">📄 Einfügen</button>
+    </div>
+    <div class="log" id="clipboard-log"></div>
+  </div>
+
+  <!-- Sprachsynthese -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔊</div>
+      <div><div class="card-title">Sprachsynthese</div><div class="card-subtitle">SpeechSynthesis API</div></div>
+      <span class="badge" id="badge-tts">...</span>
+    </div>
+    <textarea id="tts-text" placeholder="Text zum Vorlesen..." style="min-height:50px">Willkommen beim Hardware Explorer! Ich kann deinen Text vorlesen.</textarea>
+    <select id="tts-voice" style="margin-top:.5rem"></select>
+    <div style="display:flex;gap:.5rem;margin-top:.5rem;align-items:center">
+      <span style="font-size:.75rem;color:var(--muted)">Rate:</span>
+      <input type="range" id="tts-rate" min="0.5" max="2" step="0.1" value="1" style="flex:1">
+      <span id="tts-rate-val" style="font-size:.75rem">1.0</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="speak()">▶ Sprechen</button>
+      <button class="btn btn-sm btn-outline" onclick="window.speechSynthesis.cancel()">■ Stop</button>
+      <button class="btn btn-sm btn-outline" onclick="loadVoices()">🔄 Stimmen</button>
+    </div>
+  </div>
+
+</div><!-- /communication -->
+
+<!-- ERWEITERT -->
+<div class="section" id="section-advanced">
+
+  <!-- WebXR -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🥽</div>
+      <div><div class="card-title">WebXR</div><div class="card-subtitle">AR / VR Support</div></div>
+      <span class="badge" id="badge-xr">...</span>
+    </div>
+    <div class="log" id="xr-log" style="max-height:120px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkXR()">🔍 XR prüfen</button>
+    </div>
+  </div>
+
+  <!-- WebGPU -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">⚡</div>
+      <div><div class="card-title">WebGPU</div><div class="card-subtitle">Next-Gen GPU API</div></div>
+      <span class="badge" id="badge-webgpu">...</span>
+    </div>
+    <div class="log" id="webgpu-log" style="max-height:120px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="checkWebGPU()">🔍 WebGPU prüfen</button>
+    </div>
+  </div>
+
+  <!-- Dateisystem -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📁</div>
+      <div><div class="card-title">Dateisystem</div><div class="card-subtitle">File System Access API</div></div>
+      <span class="badge" id="badge-fs">...</span>
+    </div>
+    <div class="log" id="fs-log" style="max-height:100px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="openFile()">📂 Datei öffnen</button>
+      <button class="btn btn-sm" onclick="saveFile()">💾 Datei speichern</button>
+    </div>
+  </div>
+
+  <!-- Gerätespeicher & NFC -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📲</div>
+      <div><div class="card-title">NFC</div><div class="card-subtitle">Web NFC API</div></div>
+      <span class="badge" id="badge-nfc">...</span>
+    </div>
+    <div class="log" id="nfc-log" style="max-height:100px"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="startNFC()">📡 NFC lesen</button>
+      <button class="btn btn-sm" onclick="writeNFC()">✏️ NFC schreiben</button>
+    </div>
+  </div>
+
+  <!-- Browser & Gerät Info -->
+  <div class="card fullwidth">
+    <div class="card-header">
+      <div class="card-icon">ℹ️</div>
+      <div><div class="card-title">Browser &amp; Gerät Info</div><div class="card-subtitle">User Agent + Fähigkeiten</div></div>
+    </div>
+    <div id="device-info" class="log" style="max-height:200px;font-size:.7rem"></div>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="showDeviceInfo()">📋 Info laden</button>
+    </div>
+  </div>
+
+</div><!-- /advanced -->
+
+</div><!-- /main -->
+
+<div id="toast"></div>
+
+<script>
+// ==================== UTILITIES ====================
+function toast(msg, dur = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+function setBadge(id, supported) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (supported === true) { el.className = 'badge badge-supported'; el.textContent = 'Unterstützt'; }
+  else if (supported === false) { el.className = 'badge badge-unsupported'; el.textContent = 'Nicht unterstützt'; }
+  else { el.className = 'badge badge-unknown'; el.textContent = '?'; }
+}
+function appendLog(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent += (el.textContent ? '\n' : '') + msg;
+  el.scrollTop = el.scrollHeight;
+}
+function setLog(id, msg) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = msg;
+}
+function fmt(n, d = 2) { return n != null ? (+n).toFixed(d) : '—'; }
+function fmtBytes(b) {
+  if (!b) return '—';
+  if (b < 1e6) return (b / 1e3).toFixed(1) + ' KB';
+  if (b < 1e9) return (b / 1e6).toFixed(1) + ' MB';
+  return (b / 1e9).toFixed(2) + ' GB';
+}
+
+// ==================== TABS ====================
+function switchTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + name)?.classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ==================== ACCELEROMETER ====================
+let accelActive = false;
+let accelHistory = { x: [], y: [], z: [] };
+
+function startAccel() {
+  if (typeof DeviceMotionEvent === 'undefined') { setBadge('badge-accel', false); return; }
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().then(s => {
+      if (s === 'granted') listenAccel();
+      else toast('Berechtigung verweigert');
+    });
+  } else {
+    listenAccel();
+  }
+}
+function listenAccel() {
+  accelActive = true;
+  setBadge('badge-accel', true);
+  setBadge('badge-gyro', true);
+  window.addEventListener('devicemotion', onMotion);
+}
+function stopAccel() {
+  accelActive = false;
+  window.removeEventListener('devicemotion', onMotion);
+}
+function onMotion(e) {
+  const a = e.acceleration || e.accelerationIncludingGravity;
+  if (!a) return;
+  const x = a.x || 0, y = a.y || 0, z = a.z || 0;
+  const total = Math.sqrt(x * x + y * y + z * z);
+  document.getElementById('accel-x').textContent = fmt(x);
+  document.getElementById('accel-y').textContent = fmt(y);
+  document.getElementById('accel-z').textContent = fmt(z);
+  document.getElementById('accel-total').textContent = fmt(total);
+  // Gyro
+  if (e.rotationRate) {
+    document.getElementById('gyro-alpha').textContent = fmt(e.rotationRate.alpha);
+    document.getElementById('gyro-beta').textContent = fmt(e.rotationRate.beta);
+    document.getElementById('gyro-gamma').textContent = fmt(e.rotationRate.gamma);
+    document.getElementById('gyro-interval').textContent = fmt(e.interval, 0);
+  }
+  // Chart
+  accelHistory.x.push(x); accelHistory.y.push(y); accelHistory.z.push(z);
+  if (accelHistory.x.length > 60) { accelHistory.x.shift(); accelHistory.y.shift(); accelHistory.z.shift(); }
+  drawAccelChart();
+}
+function drawAccelChart() {
+  const c = document.getElementById('accel-canvas');
+  const ctx = c.getContext('2d');
+  c.width = c.offsetWidth; c.height = 60;
+  ctx.clearRect(0, 0, c.width, c.height);
+  const colors = ['#6c63ff', '#ff6584', '#43e97b'];
+  ['x', 'y', 'z'].forEach((axis, i) => {
+    const data = accelHistory[axis];
+    if (!data.length) return;
+    ctx.beginPath();
+    ctx.strokeStyle = colors[i];
+    ctx.lineWidth = 1.5;
+    data.forEach((v, idx) => {
+      const px = idx / 59 * c.width;
+      const py = c.height / 2 - v * 3;
+      idx === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+  });
+}
+
+// ==================== ORIENTATION ====================
+let orientActive = false;
+function startOrientation() {
+  if (typeof DeviceOrientationEvent === 'undefined') { setBadge('badge-orient', false); return; }
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(s => {
+      if (s === 'granted') { orientActive = true; window.addEventListener('deviceorientation', onOrient); setBadge('badge-orient', true); }
+    });
+  } else {
+    orientActive = true;
+    window.addEventListener('deviceorientation', onOrient);
+    setBadge('badge-orient', true);
+  }
+}
+function stopOrientation() {
+  orientActive = false;
+  window.removeEventListener('deviceorientation', onOrient);
+}
+function onOrient(e) {
+  document.getElementById('ori-alpha').textContent = fmt(e.alpha);
+  document.getElementById('ori-beta').textContent = fmt(e.beta);
+  document.getElementById('ori-gamma').textContent = fmt(e.gamma);
+  document.getElementById('ori-abs').textContent = e.absolute ? 'Ja' : 'Nein';
+  if (e.alpha != null) {
+    document.getElementById('compass-needle').style.transform = `translateX(-50%) rotate(${e.alpha}deg)`;
+  }
+}
+
+// ==================== SCREEN ORIENTATION ====================
+function updateScreenOrient() {
+  const o = screen.orientation;
+  if (!o) { setBadge('badge-screen-orient', false); return; }
+  setBadge('badge-screen-orient', true);
+  document.getElementById('screen-orient-type').textContent = o.type;
+  document.getElementById('screen-orient-angle').textContent = o.angle + '°';
+}
+function lockLandscape() {
+  screen.orientation?.lock('landscape').catch(e => toast('Lock nicht möglich: ' + e.message));
+}
+function unlockOrientation() {
+  screen.orientation?.unlock();
+}
+screen.orientation?.addEventListener('change', updateScreenOrient);
+updateScreenOrient();
+
+// ==================== CAMERA ====================
+let cameraStream = null;
+function startCamera(facing) {
+  if (!navigator.mediaDevices?.getUserMedia) { setBadge('badge-camera', false); return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false })
+    .then(stream => {
+      cameraStream = stream;
+      const v = document.getElementById('camera-video');
+      v.srcObject = stream;
+      setBadge('badge-camera', true);
+    })
+    .catch(e => { toast('Kamera: ' + e.message); setBadge('badge-camera', false); });
+}
+function stopCamera() {
+  cameraStream?.getTracks().forEach(t => t.stop());
+  document.getElementById('camera-video').srcObject = null;
+}
+function capturePhoto() {
+  const v = document.getElementById('camera-video');
+  const c = document.getElementById('photo-canvas');
+  c.width = v.videoWidth || 320;
+  c.height = v.videoHeight || 240;
+  c.getContext('2d').drawImage(v, 0, 0);
+  c.style.display = 'block';
+  toast('📷 Foto aufgenommen!');
+}
+function listMediaDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) { setLog('media-devices-list', 'Nicht unterstützt'); return; }
+  navigator.mediaDevices.enumerateDevices().then(devices => {
+    setLog('media-devices-list', devices.map(d => `[${d.kind}] ${d.label || '(Unbenannt)'}`).join('\n'));
+  });
+}
+
+// ==================== MICROPHONE ====================
+let micStream = null, micAnimId = null, micCtx = null, micAnalyser = null;
+function startMic() {
+  if (!navigator.mediaDevices?.getUserMedia) { setBadge('badge-mic', false); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+      micStream = stream;
+      setBadge('badge-mic', true);
+      const ac = new AudioContext();
+      micCtx = ac;
+      micAnalyser = ac.createAnalyser();
+      micAnalyser.fftSize = 256;
+      ac.createMediaStreamSource(stream).connect(micAnalyser);
+      drawMic();
+    })
+    .catch(e => { toast('Mikro: ' + e.message); setBadge('badge-mic', false); });
+}
+function stopMic() {
+  micStream?.getTracks().forEach(t => t.stop());
+  cancelAnimationFrame(micAnimId);
+  micCtx?.close();
+}
+function drawMic() {
+  const c = document.getElementById('mic-canvas');
+  c.width = c.offsetWidth || 280; c.height = 80;
+  const ctx = c.getContext('2d');
+  const buf = new Uint8Array(micAnalyser.frequencyBinCount);
+  function draw() {
+    micAnimId = requestAnimationFrame(draw);
+    micAnalyser.getByteFrequencyData(buf);
+    ctx.fillStyle = '#16161f';
+    ctx.fillRect(0, 0, c.width, c.height);
+    const bw = c.width / buf.length;
+    buf.forEach((v, i) => {
+      const h = (v / 255) * c.height;
+      const hue = (i / buf.length) * 120 + 180;
+      ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+      ctx.fillRect(i * bw, c.height - h, bw - 1, h);
+    });
+    const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
+    const db = 20 * Math.log10(rms / 255);
+    document.getElementById('mic-level').textContent = isFinite(db) ? db.toFixed(1) + ' dB' : '—';
+    document.getElementById('mic-meter').style.width = (rms / 255 * 100) + '%';
+  }
+  draw();
+}
+
+// ==================== SCREEN CAPTURE ====================
+let screenStream = null;
+function startScreenCapture() {
+  if (!navigator.mediaDevices?.getDisplayMedia) { setBadge('badge-screencap', false); return; }
+  navigator.mediaDevices.getDisplayMedia({ video: true })
+    .then(s => {
+      screenStream = s;
+      document.getElementById('screen-video').srcObject = s;
+      setBadge('badge-screencap', true);
+    })
+    .catch(e => toast('Screen: ' + e.message));
+}
+function stopScreenCapture() {
+  screenStream?.getTracks().forEach(t => t.stop());
+  document.getElementById('screen-video').srcObject = null;
+}
+
+// ==================== GEOLOCATION ====================
+let watchId = null;
+function getLocation() {
+  if (!navigator.geolocation) { setBadge('badge-geo', false); return; }
+  navigator.geolocation.getCurrentPosition(onGeo, geoErr, { enableHighAccuracy: true });
+  setBadge('badge-geo', true);
+}
+function watchLocation() {
+  if (!navigator.geolocation) return;
+  watchId = navigator.geolocation.watchPosition(onGeo, geoErr, { enableHighAccuracy: true });
+  setBadge('badge-geo', true);
+}
+function stopLocation() {
+  if (watchId != null) navigator.geolocation.clearWatch(watchId);
+}
+function onGeo(pos) {
+  const c = pos.coords;
+  document.getElementById('geo-lat').textContent = c.latitude.toFixed(6);
+  document.getElementById('geo-lon').textContent = c.longitude.toFixed(6);
+  document.getElementById('geo-alt').textContent = c.altitude ? fmt(c.altitude, 1) : '—';
+  document.getElementById('geo-acc').textContent = fmt(c.accuracy, 1);
+  document.getElementById('geo-speed').textContent = c.speed ? fmt(c.speed, 2) : '—';
+  document.getElementById('geo-heading').textContent = c.heading ? fmt(c.heading, 1) : '—';
+}
+function geoErr(e) { toast('Geo Fehler: ' + e.message); setBadge('badge-geo', false); }
+function openMap() {
+  const lat = document.getElementById('geo-lat').textContent;
+  const lon = document.getElementById('geo-lon').textContent;
+  if (lat === '—') { toast('Erst Position holen!'); return; }
+  window.open(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`);
+}
+
+// ==================== AMBIENT LIGHT ====================
+let lightSensor = null;
+function startLightSensor() {
+  if (!('AmbientLightSensor' in window)) { setBadge('badge-light', false); return; }
+  try {
+    lightSensor = new AmbientLightSensor();
+    lightSensor.addEventListener('reading', () => {
+      const lux = lightSensor.illuminance;
+      document.getElementById('light-value').textContent = lux.toFixed(1) + ' lx';
+      document.getElementById('light-meter').style.width = Math.min(lux / 1000 * 100, 100) + '%';
+      const desc = lux < 1 ? 'Dunkel' : lux < 100 ? 'Dämmerung' : lux < 1000 ? 'Innenraum' : lux < 10000 ? 'Bewölkt draußen' : 'Sonnenschein';
+      document.getElementById('light-desc').textContent = desc;
+    });
+    lightSensor.start();
+    setBadge('badge-light', true);
+  } catch (e) { toast('Licht Fehler: ' + e.message); setBadge('badge-light', false); }
+}
+function stopLightSensor() { lightSensor?.stop(); }
+function checkExtraSensors() {
+  const sensors = ['Accelerometer', 'Gyroscope', 'Magnetometer', 'AbsoluteOrientationSensor',
+    'RelativeOrientationSensor', 'GravitySensor', 'LinearAccelerationSensor', 'AmbientLightSensor'];
+  const lines = sensors.map(s => `${window[s] ? '✅' : '❌'} ${s}`);
+  setLog('extra-sensors', lines.join('\n'));
+}
+
+// ==================== NETWORK ====================
+function updateNetworkInfo() {
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!c) { setBadge('badge-network', false); return; }
+  setBadge('badge-network', true);
+  document.getElementById('net-type').textContent = c.type || '—';
+  document.getElementById('net-effective').textContent = c.effectiveType || '—';
+  document.getElementById('net-downlink').textContent = c.downlink != null ? c.downlink + ' Mb/s' : '—';
+  document.getElementById('net-rtt').textContent = c.rtt != null ? c.rtt + ' ms' : '—';
+  document.getElementById('net-save').textContent = c.saveData ? '✅ Ja' : '❌ Nein';
+  document.getElementById('net-online').textContent = navigator.onLine ? '✅ Online' : '❌ Offline';
+}
+async function speedTest() {
+  const el = document.getElementById('speed-result');
+  el.textContent = '⏳ Teste...';
+  const start = performance.now();
+  try {
+    const r = await fetch('https://speed.cloudflare.com/__down?bytes=100000', { cache: 'no-store' });
+    const data = await r.arrayBuffer();
+    const ms = performance.now() - start;
+    const mbps = ((data.byteLength * 8) / ms / 1000).toFixed(2);
+    el.textContent = `⚡ Download: ~${mbps} Mb/s (${Math.round(ms)} ms)`;
+  } catch { el.textContent = '❌ Test fehlgeschlagen'; }
+}
+navigator.connection?.addEventListener('change', updateNetworkInfo);
+updateNetworkInfo();
+
+// ==================== BLUETOOTH ====================
+function checkBluetooth() {
+  if (!navigator.bluetooth) { setBadge('badge-bt', false); appendLog('bt-log', '❌ Web Bluetooth nicht unterstützt'); return; }
+  navigator.bluetooth.getAvailability().then(av => {
+    setBadge('badge-bt', av);
+    appendLog('bt-log', av ? '✅ Bluetooth verfügbar' : '❌ Bluetooth nicht verfügbar');
+  });
+}
+function scanBluetooth() {
+  if (!navigator.bluetooth) { appendLog('bt-log', '❌ Nicht unterstützt'); return; }
+  navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] })
+    .then(d => {
+      appendLog('bt-log', `✅ Gerät: ${d.name || '(kein Name)'} | ID: ${d.id}`);
+      setBadge('badge-bt', true);
+    })
+    .catch(e => appendLog('bt-log', '❌ ' + e.message));
+}
+
+// ==================== USB ====================
+function checkUSB() {
+  setBadge('badge-usb', !!navigator.usb);
+}
+function scanUSB() {
+  if (!navigator.usb) { appendLog('usb-log', '❌ WebUSB nicht unterstützt'); setBadge('badge-usb', false); return; }
+  navigator.usb.requestDevice({ filters: [] })
+    .then(d => {
+      appendLog('usb-log', `✅ ${d.manufacturerName || '?'} – ${d.productName || '?'} (${d.vendorId}:${d.productId})`);
+      setBadge('badge-usb', true);
+    })
+    .catch(e => appendLog('usb-log', '❌ ' + e.message));
+}
+function listUSBDevices() {
+  if (!navigator.usb) { appendLog('usb-log', '❌ Nicht unterstützt'); return; }
+  navigator.usb.getDevices().then(devs => {
+    if (!devs.length) appendLog('usb-log', 'Keine autorisierten Geräte');
+    devs.forEach(d => appendLog('usb-log', `📌 ${d.manufacturerName} – ${d.productName}`));
+  });
+}
+
+// ==================== MIDI ====================
+function startMIDI() {
+  if (!navigator.requestMIDIAccess) { setBadge('badge-midi', false); appendLog('midi-log', '❌ MIDI nicht unterstützt'); return; }
+  navigator.requestMIDIAccess().then(midi => {
+    setBadge('badge-midi', true);
+    const inputs = [...midi.inputs.values()];
+    if (!inputs.length) { appendLog('midi-log', 'Keine MIDI-Geräte angeschlossen'); return; }
+    inputs.forEach(inp => {
+      appendLog('midi-log', `🎹 ${inp.name}`);
+      inp.onmidimessage = e => {
+        appendLog('midi-log', `Note: ${e.data[0].toString(16)} ${e.data[1]} ${e.data[2]}`);
+      };
+    });
+  }).catch(e => appendLog('midi-log', '❌ ' + e.message));
+}
+
+// ==================== BATTERY ====================
+function checkBattery() {
+  if (!navigator.getBattery) { setBadge('badge-battery', false); return; }
+  navigator.getBattery().then(bat => {
+    setBadge('badge-battery', true);
+    function update() {
+      const lvl = Math.round(bat.level * 100);
+      document.getElementById('bat-level').textContent = lvl + '%';
+      document.getElementById('bat-charging').textContent = bat.charging ? '⚡ Ja' : '🔋 Nein';
+      const tf = bat.chargingTime === Infinity ? '—' : Math.round(bat.chargingTime / 60) + ' min';
+      const te = bat.dischargingTime === Infinity ? '—' : Math.round(bat.dischargingTime / 60) + ' min';
+      document.getElementById('bat-time-full').textContent = tf;
+      document.getElementById('bat-time-empty').textContent = te;
+      const m = document.getElementById('bat-meter');
+      m.style.width = lvl + '%';
+      m.style.background = lvl > 50 ? '#00e676' : lvl > 20 ? '#ffd740' : '#ff5252';
+    }
+    update();
+    bat.addEventListener('chargingchange', update);
+    bat.addEventListener('levelchange', update);
+  });
+}
+
+// ==================== WAKE LOCK ====================
+let wakeLock = null;
+function acquireWakeLock() {
+  if (!navigator.wakeLock) { setBadge('badge-wakelock', false); return; }
+  navigator.wakeLock.request('screen').then(wl => {
+    wakeLock = wl;
+    document.getElementById('wakelock-dot').classList.add('on');
+    document.getElementById('wakelock-text').textContent = 'Aktiv — Bildschirm bleibt an';
+    setBadge('badge-wakelock', true);
+    wl.addEventListener('release', () => {
+      document.getElementById('wakelock-dot').classList.remove('on');
+      document.getElementById('wakelock-text').textContent = 'Freigegeben';
+    });
+  }).catch(e => toast('Wake Lock: ' + e.message));
+}
+function releaseWakeLock() {
+  wakeLock?.release();
+  wakeLock = null;
+}
+
+// ==================== PERFORMANCE ====================
+async function checkPerformance() {
+  document.getElementById('perf-cores').textContent = navigator.hardwareConcurrency || '—';
+  document.getElementById('perf-ram').textContent = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '—';
+  if (navigator.storage?.estimate) {
+    const est = await navigator.storage.estimate();
+    document.getElementById('perf-storage-used').textContent = fmtBytes(est.usage);
+    document.getElementById('perf-storage-quota').textContent = fmtBytes(est.quota);
+  }
+}
+
+// ==================== GPU ====================
+function checkGPU() {
+  const c = document.createElement('canvas');
+  const gl = c.getContext('webgl2') || c.getContext('webgl');
+  if (!gl) { toast('WebGL nicht verfügbar'); return; }
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  document.getElementById('gpu-renderer').textContent = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'Unbekannt';
+  document.getElementById('gpu-vendor').textContent = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : 'Unbekannt';
+  document.getElementById('gpu-tex').textContent = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  document.getElementById('gpu-version').textContent = gl instanceof WebGL2RenderingContext ? 'WebGL 2' : 'WebGL 1';
+}
+
+// ==================== VIBRATION ====================
+function initVibration() {
+  setBadge('badge-vibration', 'vibrate' in navigator);
+}
+
+// ==================== GAMEPAD ====================
+let gamepadAnimId = null;
+function initGamepad() {
+  setBadge('badge-gamepad', 'getGamepads' in navigator);
+  window.addEventListener('gamepadconnected', e => {
+    document.getElementById('gamepad-status').textContent = `🕹️ Controller: ${e.gamepad.id}`;
+    renderGamepads();
+  });
+  window.addEventListener('gamepaddisconnected', e => {
+    document.getElementById('gamepad-status').textContent = `Getrennt: ${e.gamepad.id}`;
+    cancelAnimationFrame(gamepadAnimId);
+    document.getElementById('gamepad-container').innerHTML = '';
+  });
+}
+function renderGamepads() {
+  gamepadAnimId = requestAnimationFrame(renderGamepads);
+  const gps = [...navigator.getGamepads()].filter(Boolean);
+  if (!gps.length) return;
+  const gp = gps[0];
+  let html = '<div class="gamepad-grid">';
+  const btnLabels = ['A','B','X','Y','LB','RB','LT','RT','Select','Start','L3','R3','↑','↓','←','→'];
+  gp.buttons.forEach((btn, i) => {
+    html += `<div class="gp-btn ${btn.pressed ? 'pressed' : ''}">${btnLabels[i] || i}</div>`;
+  });
+  html += '</div>';
+  gp.axes.forEach((v, i) => {
+    const pct = ((v + 1) / 2 * 100).toFixed(1);
+    html += `<div class="axis-bar"><span style="font-size:.65rem;color:var(--muted);width:30px">A${i}</span><div class="axis-track"><div class="axis-thumb" style="left:${pct}%"></div></div><span style="font-size:.65rem;width:35px;text-align:right">${v.toFixed(2)}</span></div>`;
+  });
+  document.getElementById('gamepad-container').innerHTML = html;
+}
+
+// ==================== TOUCH CANVAS ====================
+function initTouchCanvas() {
+  const c = document.getElementById('touch-canvas');
+  c.width = c.offsetWidth || 300; c.height = 150;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#16161f'; ctx.fillRect(0, 0, c.width, c.height);
+  const maxTouch = navigator.maxTouchPoints || 0;
+  document.getElementById('touch-max').textContent = maxTouch;
+  setBadge('badge-touch', maxTouch > 0);
+  let drawing = false;
+  function getPos(e) {
+    const r = c.getBoundingClientRect();
+    const touches = e.touches || [e];
+    document.getElementById('touch-count').textContent = (e.touches || []).length || 1;
+    return [...(e.touches || [e])].map(t => ({ x: t.clientX - r.left, y: t.clientY - r.top }));
+  }
+  c.addEventListener('pointerdown', e => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); });
+  c.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const p = getPos(e);
+    const hue = (Date.now() / 30) % 360;
+    ctx.strokeStyle = `hsl(${hue},80%,60%)`;
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.lineTo(p[0].x, p[0].y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+  });
+  c.addEventListener('pointerup', () => { drawing = false; });
+  c.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+}
+function clearTouchCanvas() {
+  const c = document.getElementById('touch-canvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+// ==================== POINTER LOCK ====================
+function requestPointerLock() {
+  const zone = document.getElementById('pointer-zone');
+  zone.requestPointerLock();
+  setBadge('badge-pointer-lock', true);
+}
+function exitPointerLock() { document.exitPointerLock(); }
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement) {
+    document.getElementById('pointer-dx').textContent = e.movementX;
+    document.getElementById('pointer-dy').textContent = e.movementY;
+  }
+});
+
+// ==================== SPEECH RECOGNITION ====================
+let recognition = null;
+function startSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setBadge('badge-speech-rec', false); toast('Speech Recognition nicht unterstützt'); return; }
+  setBadge('badge-speech-rec', true);
+  recognition = new SR();
+  recognition.lang = document.getElementById('speech-lang').value;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.onresult = e => {
+    let text = '';
+    for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+    document.getElementById('speech-output').textContent = text;
+  };
+  recognition.onstart = () => {
+    document.getElementById('speech-dot').classList.add('on');
+    document.getElementById('speech-status').textContent = 'Hört zu...';
+  };
+  recognition.onend = () => {
+    document.getElementById('speech-dot').classList.remove('on');
+    document.getElementById('speech-status').textContent = 'Inaktiv';
+  };
+  recognition.start();
+}
+function stopSpeechRecognition() { recognition?.stop(); }
+
+// ==================== NOTIFICATIONS ====================
+function initNotifications() {
+  const perm = Notification.permission;
+  setBadge('badge-notif', perm === 'granted');
+  document.getElementById('notif-permission').textContent = perm;
+}
+function requestNotifications() {
+  Notification.requestPermission().then(p => {
+    document.getElementById('notif-permission').textContent = p;
+    setBadge('badge-notif', p === 'granted');
+  });
+}
+function sendNotification() {
+  if (Notification.permission !== 'granted') { toast('Erst Berechtigung anfordern!'); return; }
+  new Notification(document.getElementById('notif-title').value, {
+    body: document.getElementById('notif-body').value,
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚡</text></svg>'
+  });
+}
+
+// ==================== WEB SHARE ====================
+function initShare() {
+  setBadge('badge-share', !!navigator.share);
+}
+async function doShare() {
+  if (!navigator.share) { toast('Web Share nicht unterstützt'); return; }
+  try {
+    await navigator.share({
+      title: document.getElementById('share-title').value,
+      url: document.getElementById('share-url').value,
+      text: document.getElementById('share-text').value
+    });
+    toast('✅ Geteilt!');
+  } catch (e) { toast('Share: ' + e.message); }
+}
+
+// ==================== CLIPBOARD ====================
+function initClipboard() {
+  setBadge('badge-clipboard', !!navigator.clipboard);
+}
+async function copyToClipboard() {
+  const text = document.getElementById('clipboard-text').value;
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    appendLog('clipboard-log', '✅ Kopiert!');
+  } else {
+    document.execCommand('copy');
+    appendLog('clipboard-log', '✅ (execCommand) Kopiert!');
+  }
+}
+async function pasteFromClipboard() {
+  if (!navigator.clipboard?.readText) { appendLog('clipboard-log', '❌ Paste nicht unterstützt'); return; }
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('clipboard-text').value = text;
+    appendLog('clipboard-log', '📋 Eingefügt: ' + text.slice(0, 40));
+  } catch (e) { appendLog('clipboard-log', '❌ ' + e.message); }
+}
+
+// ==================== TTS ====================
+function initTTS() {
+  setBadge('badge-tts', 'speechSynthesis' in window);
+  loadVoices();
+  window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+  document.getElementById('tts-rate')?.addEventListener('input', function() {
+    document.getElementById('tts-rate-val').textContent = this.value;
+  });
+}
+function loadVoices() {
+  const sel = document.getElementById('tts-voice');
+  const voices = window.speechSynthesis?.getVoices() || [];
+  sel.innerHTML = voices.map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`).join('');
+}
+function speak() {
+  const text = document.getElementById('tts-text').value;
+  if (!text || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  const voices = window.speechSynthesis.getVoices();
+  const idx = parseInt(document.getElementById('tts-voice').value);
+  if (voices[idx]) utt.voice = voices[idx];
+  utt.rate = parseFloat(document.getElementById('tts-rate').value);
+  window.speechSynthesis.speak(utt);
+}
+
+// ==================== WEBXR ====================
+async function checkXR() {
+  if (!navigator.xr) { setBadge('badge-xr', false); appendLog('xr-log', '❌ WebXR nicht unterstützt'); return; }
+  setBadge('badge-xr', true);
+  const modes = ['inline', 'immersive-vr', 'immersive-ar'];
+  for (const mode of modes) {
+    const supported = await navigator.xr.isSessionSupported(mode).catch(() => false);
+    appendLog('xr-log', `${supported ? '✅' : '❌'} ${mode}`);
+  }
+}
+
+// ==================== WEBGPU ====================
+async function checkWebGPU() {
+  if (!navigator.gpu) { setBadge('badge-webgpu', false); appendLog('webgpu-log', '❌ WebGPU nicht unterstützt'); return; }
+  setBadge('badge-webgpu', true);
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) { appendLog('webgpu-log', '❌ Kein GPU-Adapter'); return; }
+    const info = await adapter.requestAdapterInfo?.() || {};
+    appendLog('webgpu-log', `✅ Vendor: ${info.vendor || '?'}`);
+    appendLog('webgpu-log', `✅ Gerät: ${info.device || '?'}`);
+    appendLog('webgpu-log', `✅ Architektur: ${info.architecture || '?'}`);
+    const device = await adapter.requestDevice();
+    appendLog('webgpu-log', '✅ WebGPU Device bereit!');
+  } catch (e) { appendLog('webgpu-log', '❌ ' + e.message); }
+}
+
+// ==================== FILE SYSTEM ====================
+function initFS() {
+  setBadge('badge-fs', 'showOpenFilePicker' in window);
+}
+async function openFile() {
+  if (!window.showOpenFilePicker) { appendLog('fs-log', '❌ File System API nicht unterstützt'); return; }
+  try {
+    const [fh] = await window.showOpenFilePicker();
+    const f = await fh.getFile();
+    appendLog('fs-log', `✅ Datei: ${f.name} (${fmtBytes(f.size)}, ${f.type || 'unbekannt'})`);
+    if (f.type.startsWith('text/')) {
+      const text = await f.text();
+      appendLog('fs-log', `Inhalt (200 Zeichen): ${text.slice(0, 200)}`);
+    }
+  } catch (e) { appendLog('fs-log', '❌ ' + e.message); }
+}
+async function saveFile() {
+  if (!window.showSaveFilePicker) { appendLog('fs-log', '❌ Nicht unterstützt'); return; }
+  try {
+    const fh = await window.showSaveFilePicker({ suggestedName: 'hardware-explorer-export.txt' });
+    const w = await fh.createWritable();
+    await w.write('Hardware Explorer Export\n' + new Date().toISOString() + '\n\nUA: ' + navigator.userAgent);
+    await w.close();
+    appendLog('fs-log', '✅ Datei gespeichert!');
+  } catch (e) { appendLog('fs-log', '❌ ' + e.message); }
+}
+
+// ==================== NFC ====================
+function initNFC() {
+  setBadge('badge-nfc', 'NDEFReader' in window);
+}
+async function startNFC() {
+  if (!window.NDEFReader) { appendLog('nfc-log', '❌ Web NFC nicht unterstützt (nur Android Chrome)'); return; }
+  try {
+    const reader = new NDEFReader();
+    await reader.scan();
+    appendLog('nfc-log', '📡 Warte auf NFC-Tag...');
+    reader.onreading = e => {
+      appendLog('nfc-log', `✅ Tag: ${e.serialNumber}`);
+      for (const rec of e.message.records) {
+        appendLog('nfc-log', `Typ: ${rec.recordType} | Daten: ${new TextDecoder().decode(rec.data)}`);
+      }
+    };
+  } catch (e) { appendLog('nfc-log', '❌ ' + e.message); }
+}
+async function writeNFC() {
+  if (!window.NDEFReader) { appendLog('nfc-log', '❌ Web NFC nicht unterstützt'); return; }
+  try {
+    const writer = new NDEFReader();
+    await writer.write({ records: [{ recordType: 'text', data: 'Hardware Explorer' }] });
+    appendLog('nfc-log', '✅ NFC-Tag beschrieben!');
+  } catch (e) { appendLog('nfc-log', '❌ ' + e.message); }
+}
+
+// ==================== DEVICE INFO ====================
+function showDeviceInfo() {
+  const info = [
+    `UA: ${navigator.userAgent}`,
+    `Platform: ${navigator.platform || navigator.userAgentData?.platform || '?'}`,
+    `Sprache: ${navigator.language}`,
+    `Sprachen: ${navigator.languages?.join(', ')}`,
+    `CPU Kerne: ${navigator.hardwareConcurrency}`,
+    `RAM: ${navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '?'}`,
+    `Pixel-Verhältnis: ${window.devicePixelRatio}`,
+    `Auflösung: ${screen.width}x${screen.height}`,
+    `Farbtiefe: ${screen.colorDepth} bit`,
+    `Touch-Punkte: ${navigator.maxTouchPoints}`,
+    `Cookies: ${navigator.cookieEnabled ? 'Ja' : 'Nein'}`,
+    `Service Worker: ${'serviceWorker' in navigator ? 'Ja' : 'Nein'}`,
+    `IndexedDB: ${'indexedDB' in window ? 'Ja' : 'Nein'}`,
+    `Web Bluetooth: ${'bluetooth' in navigator ? 'Ja' : 'Nein'}`,
+    `WebUSB: ${'usb' in navigator ? 'Ja' : 'Nein'}`,
+    `WebGPU: ${'gpu' in navigator ? 'Ja' : 'Nein'}`,
+    `WebXR: ${'xr' in navigator ? 'Ja' : 'Nein'}`,
+    `Web MIDI: ${'requestMIDIAccess' in navigator ? 'Ja' : 'Nein'}`,
+    `NFC: ${'NDEFReader' in window ? 'Ja' : 'Nein'}`,
+    `Web Share: ${'share' in navigator ? 'Ja' : 'Nein'}`,
+    `Wake Lock: ${'wakeLock' in navigator ? 'Ja' : 'Nein'}`,
+    `Battery: ${'getBattery' in navigator ? 'Ja' : 'Nein'}`,
+  ];
+  setLog('device-info', info.join('\n'));
+}
+
+// ==================== INIT ====================
+checkBattery();
+initVibration();
+initGamepad();
+initTTS();
+initNotifications();
+initShare();
+initClipboard();
+initFS();
+initNFC();
+checkGPU();
+checkPerformance();
+initTouchCanvas();
+setBadge('badge-screencap', !!navigator.mediaDevices?.getDisplayMedia);
+setBadge('badge-geo', !!navigator.geolocation);
+
+// Gamepad polling
+(function gp() { if (document.getElementById('gamepad-container').children.length) renderGamepads(); requestAnimationFrame(gp); })();
+
+// USB check
+if (!navigator.usb) setBadge('badge-usb', false); else setBadge('badge-usb', true);
+if (!navigator.bluetooth) setBadge('badge-bt', false);
+if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) setBadge('badge-speech-rec', false);
+
+// Resize touch canvas when section becomes visible
+const tabBtns = document.querySelectorAll('.tab');
+tabBtns.forEach((btn, i) => btn.addEventListener('click', () => {
+  setTimeout(() => {
+    const c = document.getElementById('touch-canvas');
+    if (c) { c.width = c.offsetWidth || 300; }
+    const ac = document.getElementById('accel-canvas');
+    if (ac) { ac.width = ac.offsetWidth || 300; }
+    const mc = document.getElementById('mic-canvas');
+    if (mc) { mc.width = mc.offsetWidth || 300; }
+  }, 50);
+}));
+</script>
+</body>
+</html>
